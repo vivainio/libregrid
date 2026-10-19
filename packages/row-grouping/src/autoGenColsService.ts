@@ -3,8 +3,10 @@ import {
   BeanStub,
   GROUP_AUTO_COLUMN_ID,
   type ColDef,
+  _getClientSideRowModel,
   type ColumnEventType,
   type IAutoColService,
+  type IRowNode,
   type NamedBean,
   type PropertyChangedEvent,
   type PropertyValueChangedEvent,
@@ -28,14 +30,24 @@ import {
  * `ag-Grid-AutoColumn-<sourceColId>`. `groupRows` and `custom` are not yet
  * implemented; see `docs/parity/row-grouping.md`.
  *
+ * With `groupHideColumnsUntilExpanded` (multiple columns, client-side row
+ * model only) Community's `getColsToShow` keeps an auto column only while
+ * `isVisible()` is true, so this service owns that flag: the first column is
+ * always visible and each further one shows once at least one group of the
+ * preceding level is expanded. It is re-evaluated on every `modelUpdated`,
+ * which every expand/collapse and regroup path ends in.
+ *
  * @feature Row Grouping -> Auto Group Column
  * @gridOption autoGroupColumnDef
  * @gridOption groupDisplayType
+ * @gridOption groupHideColumnsUntilExpanded
  */
 export class AutoGenColsService extends BeanStub implements IAutoColService, NamedBean {
   beanName = 'autoColSvc' as const;
 
   public columns: AgColumn[] = [];
+
+  private wasHiding = false;
 
   public postConstruct(): void {
     this.addManagedEventListeners({
@@ -45,6 +57,10 @@ export class AutoGenColsService extends BeanStub implements IAutoColService, Nam
         this.beans.visibleCols.refresh(source, false);
       },
     });
+    this.addManagedEventListeners({ modelUpdated: () => this.syncHiddenColumns('api') });
+    this.addManagedPropertyListeners(['groupHideColumnsUntilExpanded'], () =>
+      this.syncHiddenColumns('api'),
+    );
     this.addManagedPropertyListeners(['autoGroupColumnDef', 'groupDisplayType'], (event) =>
       this.updateColumns(event),
     );
@@ -75,6 +91,8 @@ export class AutoGenColsService extends BeanStub implements IAutoColService, Nam
       return col;
     });
     for (const stale of existing.values()) if (stale.isAlive()) stale.destroy();
+
+    this.applyVisibility(next, 'api');
 
     const unchanged =
       next.length === this.columns.length && next.every((col, i) => col === this.columns[i]);
@@ -107,6 +125,59 @@ export class AutoGenColsService extends BeanStub implements IAutoColService, Nam
     // must produce group names and leaf keys directly.
     if (this.gos.get('treeData')) return true;
     return (this.beans.rowGroupColsSvc?.columns.length ?? 0) > 0;
+  }
+
+  private isHidingUntilExpanded(): boolean {
+    return (
+      !!this.gos.get('groupHideColumnsUntilExpanded') &&
+      this.isMultipleColumns() &&
+      this.gos.get('rowModelType') !== 'serverSide' &&
+      this.gos.get('rowModelType') !== 'viewport' &&
+      this.gos.get('rowModelType') !== 'infinite'
+    );
+  }
+
+  /** Sets each auto column's visibility; returns whether any changed. */
+  private applyVisibility(columns: AgColumn[], source: ColumnEventType): boolean {
+    let changed = false;
+    const hiding = this.isHidingUntilExpanded();
+    // Outside the feature the user owns auto-column visibility; only undo
+    // our own hiding once, when the feature is switched off.
+    const wasHiding = this.wasHiding;
+    this.wasHiding = hiding;
+    if (!hiding && !wasHiding) return false;
+    const expandedLevels = hiding ? this.getExpandedLevels() : null;
+    columns.forEach((col, i) => {
+      const visible = !expandedLevels || i === 0 || expandedLevels.has(i - 1);
+      if (col.isVisible() === visible) return;
+      col.setVisible(visible, source);
+      changed = true;
+    });
+    return changed;
+  }
+
+  private syncHiddenColumns(source: ColumnEventType): void {
+    if (this.columns.length === 0) return;
+    if (this.applyVisibility(this.columns, source)) {
+      this.beans.visibleCols.refresh(source, false);
+    }
+  }
+
+  /** Levels that hold at least one expanded group. */
+  private getExpandedLevels(): Set<number> {
+    const levels = new Set<number>();
+    const root = _getClientSideRowModel(this.beans)?.rootNode;
+    if (!root) return levels;
+    const max = this.columns.length - 1;
+    const walk = (node: IRowNode) => {
+      for (const child of node.childrenAfterGroup ?? []) {
+        if (!child.group) continue;
+        if (child.expanded) levels.add(child.level);
+        if (child.level < max) walk(child);
+      }
+    };
+    walk(root);
+    return levels;
   }
 
   private isMultipleColumns(): boolean {

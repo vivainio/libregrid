@@ -299,5 +299,45 @@ describe('Auto group column (PR 2.3)', () => {
       el.remove();
       api.destroy();
     });
+
+    describe('groupHideColumnsUntilExpanded', () => {
+      const hideOptions = (): GridOptions => ({
+        ...multiOptions(),
+        groupDefaultExpanded: 0,
+        groupHideColumnsUntilExpanded: true,
+      });
+      const visibleIds = (api: GridApi) =>
+        api.getAllDisplayedColumns().map((c) => c.getColId());
+
+      it('shows deeper group columns only once the preceding level has an expanded group', async () => {
+        const { el, api } = mount(hideOptions());
+        await vi.waitFor(() => expect(api.getDisplayedRowCount()).toBe(2));
+
+        const countryId = `${GROUP_AUTO_COLUMN_ID}-country`;
+        const cityId = `${GROUP_AUTO_COLUMN_ID}-city`;
+        expect(visibleIds(api)).toContain(countryId);
+        expect(visibleIds(api)).not.toContain(cityId);
+
+        api.getDisplayedRowAtIndex(0)!.setExpanded(true);
+        await vi.waitFor(() => expect(visibleIds(api)).toContain(cityId));
+
+        api.collapseAll();
+        await vi.waitFor(() => expect(visibleIds(api)).not.toContain(cityId));
+
+        el.remove();
+        api.destroy();
+      });
+
+      it('restores the columns when the option is switched off', async () => {
+        const { el, api } = mount(hideOptions());
+        await vi.waitFor(() => expect(api.getDisplayedRowCount()).toBe(2));
+
+        api.setGridOption('groupHideColumnsUntilExpanded', false);
+        await vi.waitFor(() => expect(visibleIds(api)).toContain(`${GROUP_AUTO_COLUMN_ID}-city`));
+
+        el.remove();
+        api.destroy();
+      });
+    });
   });
 });

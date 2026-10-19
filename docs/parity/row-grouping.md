@@ -16,7 +16,7 @@
 | `groupRowRendererParams` | ❌ | Same as `groupRowRenderer` |
 | `showOpenedGroup` | ✅ | PR 2.3 — `ShowRowGroupColsValueService.getDisplayedNode` walks a leaf row up to its nearest group ancestor; integration-tested |
 | `groupHideOpenParents` | 🟡 | PR 2.3 — `FlattenStage` hides an expanded group's own row and `ShowRowGroupColsValueService` substitutes its value onto the first child; only **one** hidden-ancestor level is substituted — a chain of 2+ consecutively-expanded hidden ancestors collapses onto one row but only the nearest one's value shows |
-| `groupHideColumnsUntilExpanded` | ❌ | Not implemented — needs per-row column suppression across the whole row, not just the auto column; no roadmap item — deferred post-1.0 (phase-13 hardening) |
+| `groupHideColumnsUntilExpanded` | 🟡 | With `groupDisplayType: 'multipleColumns'` on the client-side row model: the first group column is always visible, each further one appears once a group at the preceding level is expanded (re-evaluated on every `modelUpdated`). Not applied with `groupHideOpenParents` (single column) |
 | `groupHideParentOfSingleChild` | ✅ | PR 2.3 — `FlattenStage.resolveDisplayNode` elides a group whose only child is itself (or, for `'leafGroupsOnly'`, whose only child is a leaf); integration-tested |
 | `initialGroupOrderComparator` | ✅ | PR 2.4 — applied in `GroupStage` at tree-build time, before filtering/aggregation exist to compare on (matches ag-grid.com: "executes before filtering and aggregation"); integration-tested |
 | `groupAllowUnbalanced` | ✅ | PR 2.3 — `GroupStage` attaches a row with a `null`/`undefined`/`''` value at a level directly under the parent instead of a `(Blanks)` bucket; integration-tested |
