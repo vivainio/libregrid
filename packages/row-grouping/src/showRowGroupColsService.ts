@@ -31,13 +31,20 @@ export class ShowRowGroupColsService
   }
 
   public refresh(): void {
+    // groupDisplayType 'custom' has no auto column: the application's own
+    // columns carrying showRowGroup play that role.
     const autoCols = this.beans.autoColSvc?.columns ?? [];
-    this.columns = autoCols;
+    const customCols =
+      autoCols.length === 0 && this.gos.get('groupDisplayType') === 'custom'
+        ? (this.beans.colModel?.getCols?.() ?? []).filter((col) => col.getColDef?.().showRowGroup)
+        : [];
+    const displayCols = autoCols.length > 0 ? autoCols : customCols;
+    this.columns = displayCols;
     for (const source of this.beans.rowGroupColsSvc?.columns ?? []) {
       source.showRowGroupCol =
-        autoCols.find((col) => col.getColDef?.().showRowGroup === source.getColId()) ??
-        autoCols.find((col) => col.getColDef?.().showRowGroup === true) ??
-        autoCols[0] ??
+        displayCols.find((col) => col.getColDef?.().showRowGroup === source.getColId()) ??
+        displayCols.find((col) => col.getColDef?.().showRowGroup === true) ??
+        displayCols[0] ??
         null;
     }
   }

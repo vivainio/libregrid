@@ -27,8 +27,8 @@ import {
  * through {@link "./showRowGroupColsValueService"} rather than a field — and
  * `'multipleColumns'`, which generates one column per row-group column, each
  * with `showRowGroup` set to its source column's id and a colId of
- * `ag-Grid-AutoColumn-<sourceColId>`. `groupRows` and `custom` are not yet
- * implemented; see `docs/parity/row-grouping.md`.
+ * `ag-Grid-AutoColumn-<sourceColId>`. `groupRows` and `custom` generate no
+ * auto column at all — see `isEnabled`.
  *
  * With `groupHideColumnsUntilExpanded` (multiple columns, client-side row
  * model only) Community's `getColsToShow` keeps an auto column only while
@@ -58,6 +58,9 @@ export class AutoGenColsService extends BeanStub implements IAutoColService, Nam
       },
     });
     this.addManagedEventListeners({ modelUpdated: () => this.syncHiddenColumns('api') });
+    // Community's column model already rebuilds columns on a groupDisplayType
+    // change; rows must be redrawn too, as 'groupRows' changes their type.
+    this.addManagedPropertyListeners(['groupDisplayType'], () => this.beans.rowRenderer?.redrawRows());
     this.addManagedPropertyListeners(['groupHideColumnsUntilExpanded'], () =>
       this.syncHiddenColumns('api'),
     );
@@ -124,6 +127,10 @@ export class AutoGenColsService extends BeanStub implements IAutoColService, Nam
     // showRowGroup value service for tree rows, so the column's valueGetter
     // must produce group names and leaf keys directly.
     if (this.gos.get('treeData')) return true;
+    // 'groupRows' renders full-width group rows and 'custom' expects the
+    // application's own showRowGroup columns; neither gets an auto column.
+    const displayType = this.gos.get('groupDisplayType');
+    if (displayType === 'groupRows' || displayType === 'custom') return false;
     return (this.beans.rowGroupColsSvc?.columns.length ?? 0) > 0;
   }
 

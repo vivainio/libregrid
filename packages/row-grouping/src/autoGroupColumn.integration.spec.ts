@@ -340,4 +340,67 @@ describe('Auto group column (PR 2.3)', () => {
       });
     });
   });
+
+  describe("groupDisplayType: 'groupRows'", () => {
+    it('creates no auto column and renders group rows full width', async () => {
+      const { el, api } = mount({
+        columnDefs: [{ field: 'country', rowGroup: true }, { field: 'city' }],
+        rowData: baseRows,
+        groupDisplayType: 'groupRows',
+        groupDefaultExpanded: -1,
+      } as GridOptions);
+      await vi.waitFor(() => expect(api.getDisplayedRowCount()).toBeGreaterThan(0));
+
+      expect(api.getColumn(GROUP_AUTO_COLUMN_ID)).toBeFalsy();
+      await vi.waitFor(() => {
+        const rows = el.querySelectorAll('.ag-full-width-row');
+        expect(rows.length).toBe(2);
+        expect(rows[0]!.textContent).toContain('US');
+      });
+
+      el.remove();
+      api.destroy();
+    });
+
+    it('switches between single column and group rows at runtime', async () => {
+      const { el, api } = mount({
+        columnDefs: [{ field: 'country', rowGroup: true }, { field: 'city' }],
+        rowData: baseRows,
+        groupDefaultExpanded: -1,
+      } as GridOptions);
+      await vi.waitFor(() => expect(api.getColumn(GROUP_AUTO_COLUMN_ID)).toBeTruthy());
+
+      api.setGridOption('groupDisplayType', 'groupRows');
+      await vi.waitFor(() => expect(api.getColumn(GROUP_AUTO_COLUMN_ID)).toBeFalsy());
+      await vi.waitFor(() => expect(el.querySelectorAll('.ag-full-width-row').length).toBe(2));
+
+      api.setGridOption('groupDisplayType', 'singleColumn');
+      await vi.waitFor(() => expect(api.getColumn(GROUP_AUTO_COLUMN_ID)).toBeTruthy());
+      await vi.waitFor(() => expect(el.querySelectorAll('.ag-full-width-row').length).toBe(0));
+
+      el.remove();
+      api.destroy();
+    });
+  });
+
+  describe("groupDisplayType: 'custom'", () => {
+    it('generates no auto column and routes group values to the application showRowGroup column', async () => {
+      const { el, api } = mount({
+        columnDefs: [
+          { field: 'country', rowGroup: true },
+          { colId: 'mine', headerName: 'Mine', showRowGroup: true, cellRenderer: 'agGroupCellRenderer' },
+        ],
+        rowData: baseRows,
+        groupDisplayType: 'custom',
+      } as GridOptions);
+      await vi.waitFor(() => expect(api.getDisplayedRowCount()).toBeGreaterThan(0));
+
+      expect(api.getColumn(GROUP_AUTO_COLUMN_ID)).toBeFalsy();
+      const usGroup = api.getDisplayedRowAtIndex(0)!;
+      expect(api.getCellValue({ rowNode: usGroup, colKey: 'mine' })).toBe('US');
+
+      el.remove();
+      api.destroy();
+    });
+  });
 });

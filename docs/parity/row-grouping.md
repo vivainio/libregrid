@@ -10,10 +10,10 @@
 
 | Option | Status | Notes |
 |---|---|---|
-| `groupDisplayType` | 🟡 | `'singleColumn'` (default) and `'multipleColumns'` (one `ag-Grid-AutoColumn-<colId>` column per row-group column, each showing only its own level; ignored under `treeData`) are implemented; `'groupRows'` and `'custom'` are not read at all. `groupHideOpenParents` still uses a single column |
+| `groupDisplayType` | ✅ | `'singleColumn'` (default), `'multipleColumns'` (one `ag-Grid-AutoColumn-<colId>` column per row-group column, each showing only its own level), `'groupRows'` (no auto column; group rows render full width through `agGroupRowRenderer`) and `'custom'` (no auto column; the application's own `showRowGroup` columns receive the group values). `treeData` ignores the option. `groupHideOpenParents` still uses a single column. Footer/total rows are not rendered full width under `groupRows` |
 | `autoGroupColumnDef` | ✅ | PR 2.3 — merged into the generated colDef by `AutoGenColsService`; `colId`/`showRowGroup` stay non-overridable |
-| `groupRowRenderer` | ❌ | Only meaningful for `groupDisplayType: 'groupRows'` (full-width group rows), which isn't implemented — won't-do until that mode lands |
-| `groupRowRendererParams` | ❌ | Same as `groupRowRenderer` |
+| `groupRowRenderer` | 🟡 | Resolved by Community's own component factory for `groupDisplayType: 'groupRows'`; the default (`agGroupRowRenderer`) is the built-in group cell renderer. Custom renderers are not yet integration-tested |
+| `groupRowRendererParams` | 🟡 | Same as `groupRowRenderer` |
 | `showOpenedGroup` | ✅ | PR 2.3 — `ShowRowGroupColsValueService.getDisplayedNode` walks a leaf row up to its nearest group ancestor; integration-tested |
 | `groupHideOpenParents` | 🟡 | PR 2.3 — `FlattenStage` hides an expanded group's own row and `ShowRowGroupColsValueService` substitutes its value onto the first child; only **one** hidden-ancestor level is substituted — a chain of 2+ consecutively-expanded hidden ancestors collapses onto one row but only the nearest one's value shows |
 | `groupHideColumnsUntilExpanded` | 🟡 | With `groupDisplayType: 'multipleColumns'` on the client-side row model: the first group column is always visible, each further one appears once a group at the preceding level is expanded (re-evaluated on every `modelUpdated`). Not applied with `groupHideOpenParents` (single column) |
